@@ -1,0 +1,1165 @@
+import express from "express";
+import mongoose from "mongoose";
+import cors from "cors";
+import UserModel from "./models/Users.js";
+import ClientModel from "./models/Clients.js";
+import ReunionModel from "./models/Reunions.js";
+import bcrypt from "bcryptjs-react";
+import jwt from "jsonwebtoken";
+import VisiteModel from "./models/Visites.js";
+import TacheModel from "./models/Taches.js";
+import BanqueModel from "./models/Banques.js";
+import SecteurModel from "./models/Secteurs.js";
+import RegionModel from "./models/Regions.js";
+import GouvernementModel from "./models/Gouvernements.js";
+import ActiviteClientModel from "./models/ActiviteClient.js";
+import { Article, Client, EBC, LBC } from './mongo.js';
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+
+mongoose
+  .connect(
+    "mongodb://localhost:27017/test"
+  )
+  .then(() => {
+    console.log("MongoDB connected successfully");
+  })
+  .catch((err) => {
+    console.error("MongoDB connection error:", err);
+  });
+
+ 
+// Example route to create an Article
+app.post('/articles', async (req, res) => {
+  try {
+      const article = new Article(req.body);
+      await article.save();
+      res.status(201).send(article);
+  } catch (err) {
+      res.status(400).send(err);
+  }
+});
+
+// Example route to create a Client
+app.post('/clients', async (req, res) => {
+  try {
+      const client = new Client(req.body);
+      await client.save();
+      res.status(201).send(client);
+  } catch (err) {
+      res.status(400).send(err);
+  }
+});
+
+app.post("/login", async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    // Recherche de l'admin dans la collection des utilisateurs avec l'email donné
+    const user = await UserModel.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ message: "User does not exist" });
+    }
+
+    // Vérification du mot de passe
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res
+        .status(401)
+        .json({ message: "Email or password is incorrect" });
+    }
+
+    // Création d'un token JWT
+    const token = jwt.sign({ id: user._id, email: user.email }, "jaafer");
+
+    // Retour des données de l'admin avec le token
+    return res.json({
+      token,
+      adminID: user._id,
+      name: user.name,
+      email: user.email,
+      password: user.password,
+      username: user.username,
+      telephone: user.telephone,
+      image: user.image,
+      role: user.role,
+      // Ajoutez d'autres champs d'admin si nécessaire
+    });
+  } catch (error) {
+    console.error("Error during login:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+app.post("/users", async (req, res) => {
+  try {
+    // Create a new user instance using the UserModel
+    const newUser = new UserModel({
+      name: req.body.name,
+      username: req.body.username,
+      email: req.body.email,
+      image: req.body.image,
+      code: req.body.code,
+      telephone: req.body.telephone,
+      password: req.body.password,
+      role: req.body.role,
+    });
+
+    // Save the new user to the database
+    const savedUser = await newUser.save();
+
+    // Return the saved user data as a response
+    return res.json(savedUser);
+  } catch (error) {
+    // Handle any errors that occur during the process
+    console.error("Error saving new user:", error);
+    return res.status(500).json({ error: "Error saving new user" });
+  }
+});
+
+app.get("/users/get", async (req, res) => {
+  try {
+    const users = await UserModel.find({});
+    const totalCountUser = await UserModel.countDocuments({});
+
+    return res.json({ users, totalCountUser });
+  } catch (err) {
+    console.log(err);
+    return res.json(err);
+  }
+});
+
+app.delete("/users/:id", async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const deletedUser = await UserModel.findByIdAndDelete(userId);
+
+    if (!deletedUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    return res.json({ message: "User deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    return res.status(500).json({ error: "Error deleting user" });
+  }
+});
+
+app.put("/users/update/:id", async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const updatedUser = await UserModel.findByIdAndUpdate(userId, req.body, {
+      new: true,
+    });
+
+    if (!updatedUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    return res.json(updatedUser);
+  } catch (error) {
+    console.error("Error updating user:", error);
+    return res.status(500).json({ error: "Error updating user" });
+  }
+});
+
+app.get("/users/:id", async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const user = await UserModel.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    return res.json(user);
+  } catch (error) {
+    console.error("Error fetching user:", error);
+    return res.status(500).json({ error: "Error fetching user" });
+  }
+});
+
+app.get("/users/check/:userEmail", async (req, res) => {
+  try {
+    const userEmail = req.params.userEmail;
+    const existingEmail = await UserModel.findOne({ user: userEmail });
+
+    if (existingEmail) {
+      return res.status(200).json({ exists: true });
+    } else {
+      return res.status(200).json({ exists: false });
+    }
+  } catch (error) {
+    console.error("Error checking email:", error);
+    return res.status(500).json({ error: "Error checking email" });
+  }
+});
+
+app.get("/users/:id", async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const user = await UserModel.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ error: "user not found" });
+    }
+
+    return res.json(user);
+  } catch (error) {
+    console.error("Error fetching user:", error);
+    return res.status(500).json({ error: "Error fetching user" });
+  }
+});
+
+//Tache
+
+app.post("/taches", async (req, res) => {
+  try {
+    // Create a new user instance using the UserModel
+    const newTaches = new TacheModel({
+      libelle: req.body.libelle,
+      code_client: req.body.code_client,
+      description: req.body.description,
+      raison_sociale: req.body.raison_sociale,
+      date_debut: req.body.date_debut,
+      temps_debut: req.body.temps_debut,
+      temps_fin: req.body.temps_fin,
+      type_tache: req.body.type_tache,
+      date_fin: req.body.date_fin,
+    });
+
+    // Save the new user to the database
+    const savedTache = await newTaches.save();
+
+    // Return the saved user data as a response
+    return res.json(savedTache);
+  } catch (error) {
+    // Handle any errors that occur during the process
+    console.error("Error saving new user:", error);
+    return res.status(500).json({ error: "Error saving new user" });
+  }
+});
+
+app.get("/taches/get", async (req, res) => {
+  try {
+    const taches = await TacheModel.find({});
+    const totalCountTache = await TacheModel.countDocuments({});
+
+    return res.json({ taches, totalCountTache });
+  } catch (err) {
+    console.log(err);
+    return res.json(err);
+  }
+});
+
+app.delete("/taches/:id", async (req, res) => {
+  try {
+    const tacheId = req.params.id;
+    const deletedTache = await TacheModel.findByIdAndDelete(tacheId);
+
+    if (!deletedTache) {
+      return res.status(404).json({ error: "tache not found" });
+    }
+
+    return res.json({ message: "User deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    return res.status(500).json({ error: "Error deleting user" });
+  }
+});
+
+app.put("/taches/update/:id", async (req, res) => {
+  try {
+    const tacheId = req.params.id;
+    const updatedTache = await TacheModel.findByIdAndUpdate(tacheId, req.body, {
+      new: true,
+    });
+
+    if (!updatedTache) {
+      return res.status(404).json({ error: "user not found" });
+    }
+
+    return res.json(updatedTache);
+  } catch (error) {
+    console.error("Error updating user:", error);
+    return res.status(500).json({ error: "Error updating user" });
+  }
+});
+
+app.get("/taches/:id", async (req, res) => {
+  try {
+    const tacheId = req.params.id;
+    const tache = await TacheModel.findById(tacheId);
+
+    if (!tache) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    return res.json(tache);
+  } catch (error) {
+    console.error("Error fetching user:", error);
+    return res.status(500).json({ error: "Error fetching user" });
+  }
+});
+
+app.put("/taches/updateTache/:id", async (req, res) => {
+  try {
+    const tacheId = req.params.id;
+    const updatedTache = await TacheModel.findByIdAndUpdate(tacheId, req.body, {
+      new: true,
+    });
+
+    if (!updatedTache) {
+      return res.status(404).json({ error: "Tache not found" });
+    }
+
+    return res.json(updatedTache);
+  } catch (error) {
+    console.error("Error updating Tache:", error);
+    return res.status(500).json({ error: "Error updating Tache" });
+  }
+});
+app.get("/taches/:id", async (req, res) => {
+  try {
+    const tacheId = req.params.id;
+    const tache = await BanqueModel.findById(tacheId);
+
+    if (!tache) {
+      return res.status(404).json({ error: "tache not found" });
+    }
+
+    return res.json(tache);
+  } catch (error) {
+    console.error("Error fetching tache:", error);
+    return res.status(500).json({ error: "Error fetching tache" });
+  }
+});
+
+//Client
+
+app.get("/clients/check/:clientName", async (req, res) => {
+  try {
+    const clientName = req.params.clientName;
+    const existingClient = await ClientModel.findOne({ code: clientName });
+
+    if (existingClient) {
+      return res.status(200).json({ exists: true });
+    } else {
+      return res.status(200).json({ exists: false });
+    }
+  } catch (error) {
+    console.error("Error checking client:", error);
+    return res.status(500).json({ error: "Error checking client" });
+  }
+});
+
+app.post("/clients", async (req, res) => {
+  try {
+    // Create a new user instance using the clients
+    const newClient = new ClientModel({
+      raison_social: req.body.raison_social,
+      adresse_fiscale: req.body.adresse_fiscale,
+      adresse: req.body.adresse,
+      type: req.body.type,
+      email: req.body.email,
+      rc: req.body.rc,
+      banque: req.body.banque,
+      rib: req.body.rib,
+      telephone: req.body.telephone,
+      suspendu_tva_du: req.body.suspendu_tva_du,
+      suspendu_tva_au: req.body.suspendu_tva_au,
+      numero_decision: req.body.numero_decision,
+      region: req.body.region,
+      gouvernement: req.body.gouvernement,
+      secteur: req.body.secteur,
+      activite: req.body.activite,
+      code: req.body.code,
+    });
+
+    // Save the new user to the database
+    const savedClient = await newClient.save();
+
+    // Return the saved user data as a response
+    return res.json(savedClient);
+  } catch (error) {
+    // Handle any errors that occur during the process
+    console.error("Error saving new user:", error);
+    return res.status(500).json({ error: "Error saving new user" });
+  }
+});
+
+app.get("/clients/get", async (req, res) => {
+  try {
+    const clients = await ClientModel.find({});
+    const totalCountClient = await ClientModel.countDocuments({});
+
+    return res.json({ clients, totalCountClient });
+  } catch (err) {
+    console.log(err);
+    return res.json(err);
+  }
+});
+
+app.put("/clients/updateClient/:id", async (req, res) => {
+  try {
+    const clientId = req.params.id;
+    const updatedClient = await ClientModel.findByIdAndUpdate(
+      clientId,
+      req.body,
+      { new: true }
+    );
+
+    if (!updatedClient) {
+      return res.status(404).json({ error: "user not found" });
+    }
+
+    return res.json(updatedClient);
+  } catch (error) {
+    console.error("Error updating client:", error);
+    return res.status(500).json({ error: "Error updating client" });
+  }
+});
+app.delete("/clients/:id", async (req, res) => {
+  try {
+    const clientId = req.params.id;
+    const deletedClient = await ClientModel.findByIdAndDelete(clientId);
+
+    if (!deletedClient) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    return res.json({ message: "User deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting user:", error);
+    return res.status(500).json({ error: "Error deleting user" });
+  }
+});
+
+app.get("/clients/:id", async (req, res) => {
+  try {
+    const clientId = req.params.id;
+    const client = await ClientModel.findById(clientId);
+
+    if (!client) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    return res.json(client);
+  } catch (error) {
+    console.error("Error fetching user:", error);
+    return res.status(500).json({ error: "Error fetching user" });
+  }
+});
+
+//banque
+
+app.post("/banques", async (req, res) => {
+  try {
+    // Create a new user instance using the clients
+    const newBanque = new BanqueModel({
+      banque: req.body.banque,
+      nombreAgences: req.body.nombreAgences,
+    });
+
+    // Save the new user to the database
+    const savedBanque = await newBanque.save();
+
+    // Return the saved user data as a response
+    return res.json(savedBanque);
+  } catch (error) {
+    // Handle any errors that occur during the process
+    console.error("Error saving new user:", error);
+    return res.status(500).json({ error: "Error saving new user" });
+  }
+});
+
+app.get("/banques/get", async (req, res) => {
+  try {
+    const banques = await BanqueModel.find({});
+    const totalCountBanque = await BanqueModel.countDocuments({});
+
+    return res.json({ banques, totalCountBanque });
+  } catch (err) {
+    console.log(err);
+    return res.json(err);
+  }
+});
+
+app.delete("/banques/:id", async (req, res) => {
+  try {
+    const banqueId = req.params.id;
+    const deletedBanque = await BanqueModel.findByIdAndDelete(banqueId);
+
+    if (!deletedBanque) {
+      return res.status(404).json({ error: "Banque not found" });
+    }
+
+    return res.json({ message: "Banque deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting banque:", error);
+    return res.status(500).json({ error: "Error deleting banque" });
+  }
+});
+
+app.put("/banques/update/:id", async (req, res) => {
+  try {
+    const banqueId = req.params.id;
+    const updatedBanque = await BanqueModel.findByIdAndUpdate(
+      banqueId,
+      req.body,
+      { new: true }
+    );
+
+    if (!updatedBanque) {
+      return res.status(404).json({ error: "Banque not found" });
+    }
+
+    return res.json(updatedBanque);
+  } catch (error) {
+    console.error("Error updating banque:", error);
+    return res.status(500).json({ error: "Error updating banque" });
+  }
+});
+
+app.get("/banques/check/:banqueName", async (req, res) => {
+  try {
+    const banqueName = req.params.banqueName;
+    const existingBanque = await BanqueModel.findOne({ banque: banqueName });
+
+    if (existingBanque) {
+      return res.status(200).json({ exists: true });
+    } else {
+      return res.status(200).json({ exists: false });
+    }
+  } catch (error) {
+    console.error("Error checking banque:", error);
+    return res.status(500).json({ error: "Error checking banque" });
+  }
+});
+
+app.get("/banques/:id", async (req, res) => {
+  try {
+    const banqueId = req.params.id;
+    const banque = await BanqueModel.findById(banqueId);
+
+    if (!banque) {
+      return res.status(404).json({ error: "banque not found" });
+    }
+
+    return res.json(banque);
+  } catch (error) {
+    console.error("Error fetching banque:", error);
+    return res.status(500).json({ error: "Error fetching banque" });
+  }
+});
+
+//region
+
+app.post("/regions", async (req, res) => {
+  try {
+    // Create a new user instance using the clients
+    const newRegion = new RegionModel({
+      name: req.body.name,
+    });
+
+    // Save the new user to the database
+    const savedRegion = await newRegion.save();
+
+    // Return the saved user data as a response
+    return res.json(savedRegion);
+  } catch (error) {
+    // Handle any errors that occur during the process
+    console.error("Error saving new user:", error);
+    return res.status(500).json({ error: "Error saving new user" });
+  }
+});
+
+app.get("/regions/get", async (req, res) => {
+  try {
+    const regions = await RegionModel.find({});
+    const totalCountRegion = await RegionModel.countDocuments({});
+
+    return res.json({ regions, totalCountRegion });
+  } catch (err) {
+    console.log(err);
+    return res.json(err);
+  }
+});
+
+app.delete("/regions/:id", async (req, res) => {
+  try {
+    const regionId = req.params.id;
+    const deleteRegion = await RegionModel.findByIdAndDelete(regionId);
+
+    if (!deleteRegion) {
+      return res.status(404).json({ error: "region not found" });
+    }
+
+    return res.json({ message: "Banque deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting banque:", error);
+    return res.status(500).json({ error: "Error deleting banque" });
+  }
+});
+
+app.put("/regions/update/:id", async (req, res) => {
+  try {
+    const regionId = req.params.id;
+    const updatedRegion = await RegionModel.findByIdAndUpdate(
+      regionId,
+      req.body,
+      { new: true }
+    );
+
+    if (!updatedRegion) {
+      return res.status(404).json({ error: "region not found" });
+    }
+
+    return res.json(updatedRegion);
+  } catch (error) {
+    console.error("Error updating region:", error);
+    return res.status(500).json({ error: "Error updating region" });
+  }
+});
+app.get("/regions/check/:regionName", async (req, res) => {
+  try {
+    const regionName = req.params.regionName;
+    const existingRegion = await RegionModel.findOne({ name: regionName });
+
+    if (existingRegion) {
+      return res.status(200).json({ exists: true });
+    } else {
+      return res.status(200).json({ exists: false });
+    }
+  } catch (error) {
+    console.error("Error checking region:", error);
+    return res.status(500).json({ error: "Error checking region" });
+  }
+});
+
+app.get("/regions/:id", async (req, res) => {
+  try {
+    const regionId = req.params.id;
+    const region = await RegionModel.findById(regionId);
+
+    if (!region) {
+      return res.status(404).json({ error: "region not found" });
+    }
+
+    return res.json(region);
+  } catch (error) {
+    console.error("Error fetching region:", error);
+    return res.status(500).json({ error: "Error fetching region" });
+  }
+});
+
+//gouvernements
+
+app.post("/gouvernements", async (req, res) => {
+  try {
+    const newGouvernement = new GouvernementModel({
+      name: req.body.name,
+    });
+
+    const savedGouvernement = await newGouvernement.save();
+    return res.json(savedGouvernement);
+  } catch (error) {
+    console.error("Error saving new Gouvernement:", error);
+    return res.status(500).json({ error: "Error saving new Gouvernement" });
+  }
+});
+
+app.get("/gouvernements/get", async (req, res) => {
+  try {
+    const gouvernements = await GouvernementModel.find({});
+    const totalCountGouvernement = await GouvernementModel.countDocuments({});
+    return res.json({ gouvernements, totalCountGouvernement });
+  } catch (err) {
+    console.log(err);
+    return res.json(err);
+  }
+});
+
+app.delete("/gouvernements/:id", async (req, res) => {
+  try {
+    const gouvernementId = req.params.id;
+    const deleteGouvernement = await GouvernementModel.findByIdAndDelete(
+      gouvernementId
+    );
+
+    if (!deleteGouvernement) {
+      return res.status(404).json({ error: "Gouvernement not found" });
+    }
+
+    return res.json({ message: "Gouvernement deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting Gouvernement:", error);
+    return res.status(500).json({ error: "Error deleting Gouvernement" });
+  }
+});
+
+app.put("/gouvernements/update/:id", async (req, res) => {
+  try {
+    const GouvernementId = req.params.id;
+    const updatedGouvernement = await GouvernementModel.findByIdAndUpdate(
+      GouvernementId,
+      req.body,
+      { new: true }
+    );
+
+    if (!updatedGouvernement) {
+      return res.status(404).json({ error: "Gouvernement not found" });
+    }
+
+    return res.json(updatedGouvernement);
+  } catch (error) {
+    console.error("Error updating Gouvernement:", error);
+    return res.status(500).json({ error: "Error updating Gouvernement" });
+  }
+});
+
+app.get("/gouvernements/check/:gouvernementName", async (req, res) => {
+  try {
+    const gouvernementName = req.params.gouvernementName;
+    const existingGouvernement = await GouvernementModel.findOne({
+      name: gouvernementName,
+    });
+
+    if (existingGouvernement) {
+      return res.status(200).json({ exists: true });
+    } else {
+      return res.status(200).json({ exists: false });
+    }
+  } catch (error) {
+    console.error("Error checking gouvernements:", error);
+    return res.status(500).json({ error: "Error checking gouvernements" });
+  }
+});
+
+app.get("/gouvernements/:id", async (req, res) => {
+  try {
+    const gouvernementId = req.params.id;
+    const gouvernement = await GouvernementModel.findById(gouvernementId);
+
+    if (!gouvernement) {
+      return res.status(404).json({ error: "gouvernement not found" });
+    }
+
+    return res.json(gouvernement);
+  } catch (error) {
+    console.error("Error fetching gouvernement:", error);
+    return res.status(500).json({ error: "Error fetching gouvernement" });
+  }
+});
+
+//secteurs
+
+app.post("/secteurs", async (req, res) => {
+  try {
+    // Create a new user instance using the clients
+    const newSecteur = new SecteurModel({
+      name: req.body.name,
+    });
+
+    // Save the new user to the database
+    const savedSecteur = await newSecteur.save();
+
+    // Return the saved user data as a response
+    return res.json(savedSecteur);
+  } catch (error) {
+    // Handle any errors that occur during the process
+    console.error("Error saving new user:", error);
+    return res.status(500).json({ error: "Error saving new user" });
+  }
+});
+
+app.get("/secteurs/get", async (req, res) => {
+  try {
+    const secteurs = await SecteurModel.find({});
+    const totalCountSecteur = await SecteurModel.countDocuments({});
+
+    return res.json({ secteurs, totalCountSecteur });
+  } catch (err) {
+    console.log(err);
+    return res.json(err);
+  }
+});
+
+app.delete("/secteurs/:id", async (req, res) => {
+  try {
+    const secteurId = req.params.id;
+    const deletedSecteur = await SecteurModel.findByIdAndDelete(secteurId);
+
+    if (!deletedSecteur) {
+      return res.status(404).json({ error: "secteur not found" });
+    }
+
+    return res.json({ message: "secteur deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting secteur:", error);
+    return res.status(500).json({ error: "Error deleting secteur" });
+  }
+});
+
+app.put("/secteurs/update/:id", async (req, res) => {
+  try {
+    const secteurId = req.params.id;
+    const updatedSecteur = await SecteurModel.findByIdAndUpdate(
+      secteurId,
+      req.body,
+      { new: true }
+    );
+
+    if (!updatedSecteur) {
+      return res.status(404).json({ error: "secteurs not found" });
+    }
+
+    return res.json(updatedSecteur);
+  } catch (error) {
+    console.error("Error updating secteurs:", error);
+    return res.status(500).json({ error: "Error updating secteurs" });
+  }
+});
+app.get("/secteurs/check/:secteurName", async (req, res) => {
+  try {
+    const secteurName = req.params.secteurName;
+    const existingSecteur = await SecteurModel.findOne({ name: secteurName });
+
+    if (existingSecteur) {
+      return res.status(200).json({ exists: true });
+    } else {
+      return res.status(200).json({ exists: false });
+    }
+  } catch (error) {
+    console.error("Error checking secteur:", error);
+    return res.status(500).json({ error: "Error checking banque" });
+  }
+});
+
+app.get("/secteurs/:id", async (req, res) => {
+  try {
+    const secteurId = req.params.id;
+    const secteur = await SecteurModel.findById(secteurId);
+
+    if (!secteur) {
+      return res.status(404).json({ error: "secteur not found" });
+    }
+
+    return res.json(secteur);
+  } catch (error) {
+    console.error("Error fetching secteur:", error);
+    return res.status(500).json({ error: "Error fetching secteur" });
+  }
+});
+
+//reunions
+
+app.post("/reunions", async (req, res) => {
+  try {
+    // Create a new user instance using the UserModel
+    const newReunion = new ReunionModel({
+      libelle: req.body.libelle,
+      code_client: req.body.code_client,
+      description: req.body.description,
+      raison_sociale: req.body.raison_sociale,
+      date_debut: req.body.date_debut,
+      temps_debut: req.body.temps_debut,
+      temps_fin: req.body.temps_fin,
+      type_reunion: req.body.type_reunion,
+    });
+
+    // Save the new user to the database
+    const savedReunion = await newReunion.save();
+
+    // Return the saved user data as a response
+    return res.json(savedReunion);
+  } catch (error) {
+    // Handle any errors that occur during the process
+    console.error("Error saving new user:", error);
+    return res.status(500).json({ error: "Error saving new user" });
+  }
+});
+
+app.get("/reunions/get", async (req, res) => {
+  try {
+    const reunions = await ReunionModel.find({});
+    const totalCountReunion = await ReunionModel.countDocuments({});
+
+    return res.json({ reunions, totalCountReunion });
+  } catch (err) {
+    console.log(err);
+    return res.json(err);
+  }
+});
+app.put("/reunions/updateReunion/:id", async (req, res) => {
+  try {
+    const reunionId = req.params.id;
+    const updatedReunion = await ReunionModel.findByIdAndUpdate(
+      reunionId,
+      req.body,
+      { new: true }
+    );
+
+    if (!updatedReunion) {
+      return res.status(404).json({ error: "user not found" });
+    }
+
+    return res.json(updatedReunion);
+  } catch (error) {
+    console.error("Error updating reunion:", error);
+    return res.status(500).json({ error: "Error updating reunion" });
+  }
+});
+app.delete("/reunions/:id", async (req, res) => {
+  try {
+    const reunionId = req.params.id;
+    const deletedReunion = await ReunionModel.findByIdAndDelete(reunionId);
+
+    if (!deletedReunion) {
+      return res.status(404).json({ error: "reunions not found" });
+    }
+
+    return res.json({ message: "reunions deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting reunions:", error);
+    return res.status(500).json({ error: "Error deleting user" });
+  }
+});
+
+app.get("/reunions/:id", async (req, res) => {
+  try {
+    const reunionId = req.params.id;
+    const reunion = await ReunionModel.findById(reunionId);
+
+    if (!reunion) {
+      return res.status(404).json({ error: "reunion not found" });
+    }
+
+    return res.json(reunion);
+  } catch (error) {
+    console.error("Error fetching reunion:", error);
+    return res.status(500).json({ error: "Error fetching reunion" });
+  }
+});
+
+//visites
+
+app.post("/visites", async (req, res) => {
+  try {
+    // Create a new user instance using the UserModel
+    const newVisite = new VisiteModel({
+      libelle: req.body.libelle,
+      code_client: req.body.code_client,
+      description: req.body.description,
+      raison_sociale: req.body.raison_sociale,
+      date_debut: req.body.date_debut,
+      temps_debut: req.body.temps_debut,
+      temps_fin: req.body.temps_fin,
+      type_visite: req.body.type_visite,
+      date_fin: req.body.date_fin,
+    });
+
+    // Save the new user to the database
+    const savedVisite = await newVisite.save();
+
+    // Return the saved user data as a response
+    return res.json(savedVisite);
+  } catch (error) {
+    // Handle any errors that occur during the process
+    console.error("Error saving new user:", error);
+    return res.status(500).json({ error: "Error saving new user" });
+  }
+});
+
+app.get("/visites/get", async (req, res) => {
+  try {
+    const visites = await VisiteModel.find({});
+    const totalCountVisite = await VisiteModel.countDocuments({});
+
+    return res.json({ visites, totalCountVisite });
+  } catch (err) {
+    console.log(err);
+    return res.json(err);
+  }
+});
+
+app.delete("/visites/:id", async (req, res) => {
+  try {
+    const visiteId = req.params.id;
+    const deletedVisite = await VisiteModel.findByIdAndDelete(visiteId);
+
+    if (!deletedVisite) {
+      return res.status(404).json({ error: "visite not found" });
+    }
+
+    return res.json({ message: "visite deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting visite:", error);
+    return res.status(500).json({ error: "Error deleting visite" });
+  }
+});
+
+app.put("/visites/update/:id", async (req, res) => {
+  try {
+    const visiteId = req.params.id;
+    const updatedVisite = await VisiteModel.findByIdAndUpdate(
+      visiteId,
+      req.body,
+      { new: true }
+    );
+
+    if (!updatedVisite) {
+      return res.status(404).json({ error: "visites not found" });
+    }
+
+    return res.json(updatedVisite);
+  } catch (error) {
+    console.error("Error updating visite:", error);
+    return res.status(500).json({ error: "Error updating visites" });
+  }
+});
+
+app.get("/visites/:id", async (req, res) => {
+  try {
+    const visiteId = req.params.id;
+    const visite = await VisiteModel.findById(visiteId);
+
+    if (!visite) {
+      return res.status(404).json({ error: "visite not found" });
+    }
+
+    return res.json(visite);
+  } catch (error) {
+    console.error("Error fetching user:", error);
+    return res.status(500).json({ error: "Error fetching user" });
+  }
+});
+
+// activites
+app.post("/activites", async (req, res) => {
+  try {
+    // Create a new activites instance using the clients
+    const newActivite = new ActiviteClientModel({
+      name: req.body.name,
+    });
+
+    // Save the new user to the database
+    const savedActivite = await newActivite.save();
+
+    // Return the saved user data as a response
+    return res.json(savedActivite);
+  } catch (error) {
+    // Handle any errors that occur during the process
+    console.error("Error saving new Activite:", error);
+    return res.status(500).json({ error: "Error saving new Activite" });
+  }
+});
+
+app.get("/activites/get", async (req, res) => {
+  try {
+    const activites = await ActiviteClientModel.find({});
+    const totalCountActivite = await ActiviteClientModel.countDocuments({});
+
+    return res.json({ activites, totalCountActivite });
+  } catch (err) {
+    console.log(err);
+    return res.json(err);
+  }
+});
+
+app.delete("/activites/:id", async (req, res) => {
+  try {
+    const activiteId = req.params.id;
+    const deleteActivite = await ActiviteClientModel.findByIdAndDelete(
+      activiteId
+    );
+
+    if (!deleteActivite) {
+      return res.status(404).json({ error: "activite not found" });
+    }
+
+    return res.json({ message: "activite deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting activite:", error);
+    return res.status(500).json({ error: "Error deleting activite" });
+  }
+});
+
+app.put("/activite/update/:id", async (req, res) => {
+  try {
+    const activiteId = req.params.id;
+    const updatedActivite = await ActiviteClientModel.findByIdAndUpdate(
+      activiteId,
+      req.body,
+      { new: true }
+    );
+
+    if (!updatedActivite) {
+      return res.status(404).json({ error: "activite not found" });
+    }
+
+    return res.json(updatedActivite);
+  } catch (error) {
+    console.error("Error updating activite:", error);
+    return res.status(500).json({ error: "Error updating activite" });
+  }
+});
+app.get("/activites/check/:activiteName", async (req, res) => {
+  try {
+    const activiteName = req.params.activiteName;
+    const existingActivite = await ActiviteClientModel.findOne({
+      name: activiteName,
+    });
+
+    if (existingActivite) {
+      return res.status(200).json({ exists: true });
+    } else {
+      return res.status(200).json({ exists: false });
+    }
+  } catch (error) {
+    console.error("Error checking activite:", error);
+    return res.status(500).json({ error: "Error checking activite" });
+  }
+});
+app.put("/activites/update/:id", async (req, res) => {
+  try {
+    const activiteId = req.params.id;
+    const updatedActivite = await ActiviteClientModel.findByIdAndUpdate(
+      activiteId,
+      req.body,
+      { new: true }
+    );
+
+    if (!updatedActivite) {
+      return res.status(404).json({ error: "activite not found" });
+    }
+
+    return res.json(updatedActivite);
+  } catch (error) {
+    console.error("Error updating activite:", error);
+    return res.status(500).json({ error: "Error updating activite" });
+  }
+});
+
+app.get("/activites/:id", async (req, res) => {
+  try {
+    const activiteId = req.params.id;
+    const activite = await SecteurModel.findById(activiteId);
+
+    if (!activite) {
+      return res.status(404).json({ error: "activite not found" });
+    }
+
+    return res.json(activite);
+  } catch (error) {
+    console.error("Error fetching activite:", error);
+    return res.status(500).json({ error: "Error fetching activite" });
+  }
+});
+
+app.listen(3002, () => {
+  console.log("Connected to backend.");
+});

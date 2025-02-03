@@ -1,0 +1,6 @@
+export default Formuser
+.dark-background {
+  background-color: #333; /* Choisissez la couleur sombre de votre choix */
+  color: #fff; /* Couleur du texte sur fond sombre */
+  padding: 20px; /* Ajoutez un espace intérieur pour améliorer l'apparence */
+}

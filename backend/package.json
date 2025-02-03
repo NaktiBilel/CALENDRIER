@@ -1,0 +1,29 @@
+{
+  "name": "baserverckend",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "bcryptjs": "^2.4.3",
+    "bcryptjs-react": "^2.4.6",
+    "core-js": "^3.37.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^6.6.2",
+    "mongoose": "^8.5.1",
+    "multer": "^1.4.5-lts.1",
+    "node-gyp": "^10.1.0",
+    "nodemon": "^3.1.0"
+  }
+}
